@@ -65,10 +65,14 @@ def fetch(inbox="inbox", conn=None) -> dict:
     log["no_attachment"] = []  # this run's list only
 
     own = conn is None
+    folder = os.environ.get("IMAP_FOLDER")
+    if own and not folder:
+        raise SystemExit("Set IMAP_FOLDER to the label/folder holding invoices (e.g. Invoices). "
+                         "Refusing to read the whole inbox.")
     if own:
         conn = imaplib.IMAP4_SSL(os.environ["IMAP_HOST"])
         conn.login(os.environ["IMAP_USER"], os.environ["IMAP_PASSWORD"])
-    conn.select(os.environ.get("IMAP_FOLDER", "INBOX"))
+    conn.select('"%s"' % (folder or "INBOX"))
     _, ids = conn.search(None, "UNSEEN")
     results = []
     for num in ids[0].split():
