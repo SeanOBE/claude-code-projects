@@ -253,6 +253,23 @@ def write_report(rows, problems, month, out_path, engine):
     return counted, grand
 
 
+def run(inbox="inbox", month=None, offline=False, out="monthly_report.xlsx", quiet=False):
+    """Read everything in `inbox`, write the Excel report, return a summary dict."""
+    folder = Path(inbox)
+    rows, problems, engine = process(folder, offline)
+    if not rows and not problems:
+        raise SystemExit(f"No invoices found in {folder}/")
+    flag_duplicates(rows)
+    month = month or max((r["invoice_date"] for r in rows if r.get("invoice_date")), default="")[:7]
+    counted, grand = write_report(rows, problems, month, out, engine)
+    summary = {"month": month, "count": len(counted), "total": grand, "report": out,
+               "flagged": [(r["file"], r["flag"]) for r in rows if r["flag"]],
+               "unreadable": problems, "engine": engine}
+    if not quiet:
+        print_summary(rows, counted, problems, engine, month, grand, out)
+    return summary
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("inbox", nargs="?", default="inbox")
@@ -260,15 +277,11 @@ def main():
     ap.add_argument("--offline", action="store_true")
     ap.add_argument("--out", default="monthly_report.xlsx")
     a = ap.parse_args()
+    run(a.inbox, a.month, a.offline, a.out)
 
-    folder = Path(a.inbox)
-    rows, problems, engine = process(folder, a.offline)
-    if not rows and not problems:
-        sys.exit(f"No invoices found in {folder}/")
-    flag_duplicates(rows)
-    month = a.month or max((r["invoice_date"] for r in rows if r.get("invoice_date")), default="")[:7]
-    counted, grand = write_report(rows, problems, month, a.out, engine)
 
+def print_summary(rows, counted, problems, engine, month, grand, out_path):
+    a = argparse.Namespace(out=out_path)
     print(f"Read {len(rows)} files with {engine}; {len(problems)} unreadable")
     for r in sorted(counted, key=lambda r: r.get("invoice_date") or ""):
         print(f"  {r.get('invoice_date')}  {r['supplier'][:28]:28} {str(r.get('invoice_number') or ''):12} {dec(r['total']):>10}"

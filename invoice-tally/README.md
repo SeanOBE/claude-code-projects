@@ -12,3 +12,14 @@ Duplicates (same supplier + invoice number) are excluded and anything odd
 Each file is read once and cached in `inbox/.extracted.json`.
 
 `python make_samples.py` creates fake test invoices. `--offline` uses a basic text reader (clean PDFs only).
+
+## Hands-off (email) mode
+Suppliers email invoices to one dedicated mailbox. `auto.py` runs daily:
+fetches unread mail, saves PDF/photo attachments (ignores logos, skips exact
+duplicate files, never deletes mail), reads them, refreshes the month's report.
+
+    cp .env.example .env   # fill in, then load into the environment
+    python auto.py                         # daily: refresh this month
+    python auto.py --month previous --send # on the 1st: email last month's final tally
+
+The email lists anything needing a look (unreadable files, duplicates, emails with no attachment).
